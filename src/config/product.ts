@@ -11,7 +11,7 @@ import maroonBow from "@/assets/maroon-bow.jpg";
 
 /** Central, editable product configuration. Replace placeholders with real details. */
 export const BRAND = {
-  name: "Maison Placeholder", // TODO: your brand name
+  name: "Kurta", // TODO: your brand name
   whatsappNumber: "919652564916",
   email: "", // TODO: order enquiry email
   phone: "", // TODO
