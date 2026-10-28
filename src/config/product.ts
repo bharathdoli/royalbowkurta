@@ -19,10 +19,19 @@ export const BRAND = {
 
 export const PRODUCT = {
   name: "The Royal Bow Kurta",
-  price: 2199,
+  mrp: 3499, // original price (shown struck through)
+  price: 2199, // selling / discounted price
   includedNote: "Kurta only. Trousers shown for styling purposes and sold separately.",
   sizes: ["M", "L", "XL"],
   fabric: "Fabric details to be added.", // TODO
+};
+
+export type ColorId = "ivory" | "maroon";
+
+/** Stock available per colour, per size. Set to 0 for sold out. */
+export const STOCK: Record<ColorId, Record<string, number>> = {
+  ivory: { M: 1, L: 3, XL: 0 },
+  maroon: { M: 1, L: 0, XL: 1 },
 };
 
 export const SIZE_GUIDE: { size: string; chest: string; length: string; shoulder: string }[] =
@@ -33,8 +42,6 @@ export const POLICIES = {
   shipping: "Shipping charges will be confirmed here.", // TODO
   returns: "Return and exchange policy will be shared here.", // TODO
 };
-
-export type ColorId = "ivory" | "maroon";
 
 export const COLORS: Record<
   ColorId,
@@ -58,3 +65,5 @@ export const COLORS: Record<
 
 export const formatINR = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
+
+export const DISCOUNT_PERCENT = Math.round(((PRODUCT.mrp - PRODUCT.price) / PRODUCT.mrp) * 100); // ≈ 37

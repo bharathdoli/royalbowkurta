@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { BRAND, COLORS, PRODUCT, formatINR, type ColorId } from "@/config/product";
+import { BRAND, COLORS, PRODUCT, STOCK, DISCOUNT_PERCENT, formatINR, type ColorId } from "@/config/product";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -29,8 +29,19 @@ function Reveal({ children, className = "", delay = 0 }: { children: ReactNode; 
 }
 
 const price = formatINR(PRODUCT.price);
+const mrp = formatINR(PRODUCT.mrp);
 const IDS = Object.keys(COLORS) as ColorId[];
 const waLink = (text: string) => `https://wa.me/${BRAND.whatsappNumber}?text=${encodeURIComponent(text)}`;
+
+function PriceTag({ className = "" }: { className?: string }) {
+  return (
+    <span className={`inline-flex flex-wrap items-baseline gap-x-3 gap-y-1 ${className}`}>
+      <span className="text-muted-foreground line-through decoration-1">{mrp}</span>
+      <span className="font-medium text-foreground">{price}</span>
+      <span className="rounded-full bg-accent/20 px-2 py-0.5 text-xs font-medium text-accent">{DISCOUNT_PERCENT}% OFF</span>
+    </span>
+  );
+}
 
 function WhatsAppIcon({ className = "" }: { className?: string }) {
   return (
@@ -47,6 +58,19 @@ function Index() {
   const [notice, setNotice] = useState("");
   const c = COLORS[color];
 
+  const left = size ? STOCK[color][size] ?? 0 : 0;
+  const maxQty = size ? Math.max(1, left) : 10;
+
+  // If the chosen size is sold out in the newly selected colour, clear it
+  useEffect(() => {
+    if (size && (STOCK[color][size] ?? 0) === 0) setSize("");
+  }, [color, size]);
+
+  // Keep quantity within available stock
+  useEffect(() => {
+    setQty((q) => Math.min(q, maxQty));
+  }, [maxQty]);
+
   const choose = (id: ColorId) => {
     setColor(id);
     document.getElementById("order")?.scrollIntoView({ behavior: "smooth" });
@@ -55,7 +79,7 @@ function Index() {
   const buy = () => {
     if (!size) { setNotice("Please select a size."); document.getElementById("order")?.scrollIntoView({ behavior: "smooth" }); return; }
     setNotice("");
-    const msg = `Hello, I'd like to order:\n${PRODUCT.name}\nColour: ${c.label}\nSize: ${size}\nQuantity: ${qty}\nPrice: ${price} each (kurta only)`;
+    const msg = `Hello, I'd like to order:\n${PRODUCT.name}\nColour: ${c.label}\nSize: ${size}\nQuantity: ${qty}\nPrice: ${price} each (MRP ${mrp}, kurta only)`;
     window.open(waLink(msg), "_blank", "noopener");
   };
 
@@ -78,9 +102,9 @@ function Index() {
         <p className="text-sm font-medium text-accent rise">New</p>
         <h1 className="mt-3 text-5xl md:text-8xl rise" style={{ animationDelay: "100ms" }}>{PRODUCT.name}</h1>
         <p className="mt-4 text-lg text-muted-foreground md:text-2xl rise" style={{ animationDelay: "200ms" }}>Quiet royalty. In gold.</p>
-        <div className="mt-8 flex items-center justify-center gap-6 rise" style={{ animationDelay: "300ms" }}>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 rise" style={{ animationDelay: "300ms" }}>
           <a href="#order" className="rounded-full bg-primary px-7 py-3 text-sm text-primary-foreground transition-opacity hover:opacity-90">Buy</a>
-          <span className="text-sm text-muted-foreground">From {price}</span>
+          <PriceTag className="text-sm" />
         </div>
         <div className="mx-auto mt-14 max-w-xl rise" style={{ animationDelay: "400ms" }}>
           <div className="aspect-[3/4] overflow-hidden rounded-3xl bg-secondary">
@@ -156,7 +180,7 @@ function Index() {
         </div>
         <div>
           <h2 className="text-4xl md:text-5xl">Buy {PRODUCT.name}</h2>
-          <p className="mt-3 text-2xl">{price}</p>
+          <PriceTag className="mt-3 text-2xl" />
           <p className="mt-1 text-sm text-muted-foreground">Kurta only. Trousers not included.</p>
 
           <p className="mt-10 text-sm font-medium">Colour <span className="text-muted-foreground">— {c.label}</span></p>
@@ -172,18 +196,36 @@ function Index() {
 
           <p className="mt-8 text-sm font-medium">Size</p>
           <div className="mt-3 grid grid-cols-3 gap-3">
-            {PRODUCT.sizes.map((s) => (
-              <button key={s} type="button" onClick={() => { setSize(s); setNotice(""); }} aria-pressed={s === size}
-                className={`h-12 rounded-2xl border-2 text-sm transition-colors ${s === size ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-accent"}`}>{s}</button>
-            ))}
+            {PRODUCT.sizes.map((s) => {
+              const stock = STOCK[color][s] ?? 0;
+              const out = stock === 0;
+              return (
+                <button key={s} type="button" disabled={out}
+                  onClick={() => { setSize(s); setQty(1); setNotice(""); }}
+                  aria-pressed={s === size}
+                  className={`flex h-14 flex-col items-center justify-center rounded-2xl border-2 text-sm transition-colors ${
+                    out
+                      ? "cursor-not-allowed border-border text-muted-foreground/50 line-through"
+                      : s === size
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border hover:border-accent"
+                  }`}>
+                  {s}
+                  {out && <span className="text-[10px] no-underline">Sold out</span>}
+                </button>
+              );
+            })}
           </div>
+          {size && left <= 3 && (
+            <p className="mt-3 text-sm text-accent">{left === 1 ? "Only 1 left!" : `Only ${left} left`}</p>
+          )}
 
           <div className="mt-8 flex items-center gap-5">
             <span className="text-sm font-medium">Quantity</span>
             <div className="flex items-center rounded-full border">
               <button type="button" aria-label="Decrease quantity" className="h-10 w-10" onClick={() => setQty((q) => Math.max(1, q - 1))}>−</button>
               <span className="w-6 text-center" aria-live="polite">{qty}</span>
-              <button type="button" aria-label="Increase quantity" className="h-10 w-10" onClick={() => setQty((q) => Math.min(10, q + 1))}>+</button>
+              <button type="button" aria-label="Increase quantity" className="h-10 w-10" onClick={() => setQty((q) => Math.min(maxQty, q + 1))}>+</button>
             </div>
           </div>
 
